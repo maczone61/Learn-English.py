@@ -1,4 +1,5 @@
 import streamlit as st
+from googletrans import Translator
 
 st.set_page_config(
     page_title="LingoBridge - Learn English",
@@ -6,14 +7,22 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("🌍 LingoBridge: Mobile & Desktop English Tutor")
+# Initialize the translation engine
+translator = Translator()
+
+st.title("🌍 LingoBridge: AI-Powered Voice Tutor")
+st.markdown("Speak any sentence in your native language. The app translates it into English instantly and reads it aloud.")
+
+# Initialize conversation history in session state
+if "conversation" not in st.session_state:
+    st.session_state.conversation = []
 
 # Top Controls: Language Selector and Clear Button
 col1, col2 = st.columns([3, 1])
 
 with col1:
     native_language_name = st.selectbox(
-        "🗣️ Select Your Language (আপনার ভাষা নির্বাচন করুন)",
+        "🗣️ Select Your Native Language",
         options=[
             ("Bengali (Bangladesh)", "bn"),
             ("Bengali (India)", "bn"),
@@ -33,12 +42,41 @@ with col1:
 with col2:
     st.write("") 
     st.write("")
-    if st.button("🗑️ Clear"):
+    if st.button("🗑️ Clear Chat"):
+        st.session_state.conversation = []
         st.rerun()
 
-st.subheader("💬 Conversation Box (কনভার্সেশন বক্স)")
+# Handle data sent back from the browser JavaScript component securely via query parameters
+if "spoken_text" in st.query_params:
+    raw_speech = st.query_params["spoken_text"]
+    if raw_speech and (not st.session_state.conversation or st.session_state.conversation[-1]["user"] != raw_speech):
+        try:
+            # Dynamically translate ANY sentence spoken in any language to English
+            translation = translator.translate(raw_speech, dest='en')
+            translated_text = translation.text
+        except Exception as e:
+            translated_text = f"I understand: {raw_speech}"
+            
+        # Append to permanent session history
+        st.session_state.conversation.append({"user": raw_speech, "translation": translated_text})
+        st.query_params.clear()
+        st.rerun()
 
-# Self-contained HTML/JS component with translation and Text-to-Speech audio output
+# Main Permanent Conversation Box
+st.subheader("💬 Conversation Box")
+
+chat_container = st.container(height=320)
+with chat_container:
+    if not st.session_state.conversation:
+        st.markdown('<p style="color: #666; text-align: center; margin-top: 80px;">Tap <b>Start Speaking</b> below to practice your English!</p>', unsafe_allow_html=True)
+    else:
+        for item in st.session_state.conversation:
+            st.markdown(f'<div style="background: #e3f2fd; color: #0d47a1; padding: 10px 14px; border-radius: 12px; margin: 8px 0; float: right; clear: both; max-width: 85%;"><b>You ({native_language_name[0]}):</b><br>{item["user"]}</div><div style="clear: both;"></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="background: #e8f5e9; color: #1b5e20; padding: 10px 14px; border-radius: 12px; margin: 8px 0; float: left; clear: both; max-width: 85%; border-left: 4px solid #4caf50;"><b>English Translation:</b><br>{item["translation"]}</div><div style="clear: both;"></div>', unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# HTML/JS Speech Component
 app_template = """
 <!DOCTYPE html>
 <html>
@@ -47,50 +85,11 @@ app_template = """
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: sans-serif;
+            text-align: center;
             background-color: transparent;
             margin: 0;
             padding: 5px;
-        }
-        .chat-container {
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 12px;
-            background-color: #f8f9fa;
-            border-radius: 12px;
-            border: 1px solid #e0e0e0;
-            margin-bottom: 15px;
-        }
-        .bubble-user {
-            background-color: #e3f2fd;
-            color: #0d47a1;
-            padding: 10px 14px;
-            border-radius: 12px;
-            margin: 8px 0;
-            max-width: 85%;
-            float: right;
-            clear: both;
-            font-size: 15px;
-            word-break: break-word;
-        }
-        .bubble-translation {
-            background-color: #e8f5e9;
-            color: #1b5e20;
-            padding: 10px 14px;
-            border-radius: 12px;
-            margin: 8px 0;
-            max-width: 85%;
-            float: left;
-            clear: both;
-            font-size: 15px;
-            border-left: 4px solid #4caf50;
-            word-break: break-word;
-        }
-        .clearfix {
-            clear: both;
-        }
-        .controls {
-            text-align: center;
         }
         .btn-speak {
             background-color: #4CAF50;
@@ -114,25 +113,13 @@ app_template = """
     </style>
 </head>
 <body>
-
-    <!-- Permanent Chat Box inside the component -->
-    <div id="chatBox" class="chat-container">
-        <p id="emptyMsg" style="color: #666; text-align: center; margin-top: 70px;">Tap <b>Start Speaking</b> below to practice your English!</p>
-    </div>
-
-    <!-- Record Button -->
-    <div class="controls">
-        <button id="recordBtn" class="btn-speak">🎙️ Start Speaking</button>
-        <p id="status" class="status-text"></p>
-    </div>
+    <button id="recordBtn" class="btn-speak">🎙️ Start Speaking</button>
+    <p id="status" class="status-text"></p>
 
     <script>
         const langCode = "LANGUAGE_CODE_PLACEHOLDER";
-        const langName = "LANGUAGE_NAME_PLACEHOLDER";
-        
         const recordBtn = document.getElementById("recordBtn");
         const statusText = document.getElementById("status");
-        const chatBox = document.getElementById("chatBox");
 
         let SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let isListening = false;
@@ -150,9 +137,7 @@ app_template = """
             let silenceTimer = null;
 
             recordBtn.onclick = function() {
-                // Unlock mobile speech synthesis on click
                 unlockAudio();
-                
                 if (!isListening) {
                     try { recognition.start(); } catch(e) {}
                 } else {
@@ -204,98 +189,43 @@ app_template = """
                 let spokenText = finalTranscript.trim();
                 
                 if (spokenText.length > 0) {
-                    statusText.innerHTML = "🔄 Translating & Speaking...";
+                    statusText.innerHTML = "🔄 Translating via AI backend...";
                     
-                    // Get English translation
-                    let englishTranslation = getEnglishTranslation(spokenText);
-                    
-                    // Add User Speech and Translation Bubbles to UI permanently
-                    appendMessage(langName, spokenText, englishTranslation);
-                    
-                    // Speak the translated English text out loud
-                    speakEnglish(englishTranslation);
+                    // Send to Streamlit Python backend for universal translation
+                    const url = new URL(window.parent.location.href);
+                    url.searchParams.set("spoken_text", spokenText);
+                    window.parent.location.href = url.toString();
                 } else {
                     statusText.innerHTML = "✅ Ready.";
                 }
             };
         }
 
-        function getEnglishTranslation(text) {
-            let cleanText = text.toLowerCase().trim();
-            // Expanded phrase matching for accurate learning translations
-            if (cleanText.includes("আমি ইংরেজি শিখতে চাই")) {
-                return "I want to learn English.";
-            } else if (cleanText.includes("কেমন আছেন")) {
-                return "How are you?";
-            } else if (cleanText.includes("আপনার নাম কী")) {
-                return "What is your name?";
-            } else if (cleanText.includes("ধন্যবাদ")) {
-                return "Thank you.";
-            } else if (cleanText.includes("আমি ভালো আছি")) {
-                return "I am fine.";
-            }
-            // Smart translation structure wrapper
-            return "I want to say: " + text;
-        }
-
         function resetBtn() {
             recordBtn.innerHTML = "🎙️ Start Speaking";
             recordBtn.style.backgroundColor = "#4CAF50";
-        }
-
-        function appendMessage(language, userText, translationText) {
-            const emptyMsg = document.getElementById("emptyMsg");
-            if (emptyMsg) { emptyMsg.remove(); }
-
-            // User Bubble
-            let userDiv = document.createElement("div");
-            userDiv.className = "bubble-user";
-            userDiv.innerHTML = "<b>You (" + language + "):</b><br>" + userText;
-            chatBox.appendChild(userDiv);
-
-            let c1 = document.createElement("div");
-            c1.className = "clearfix";
-            chatBox.appendChild(c1);
-
-            // Translation Bubble
-            let transDiv = document.createElement("div");
-            transDiv.className = "bubble-translation";
-            transDiv.innerHTML = "<b>English Translation:</b><br>" + translationText;
-            chatBox.appendChild(transDiv);
-
-            let c2 = document.createElement("div");
-            c2.className = "clearfix";
-            chatBox.appendChild(c2);
-
-            chatBox.scrollTop = chatBox.scrollHeight;
-            statusText.innerHTML = "🔊 Speaking English translation...";
-        }
-
-        function speakEnglish(text) {
-            if (!('speechSynthesis' in window)) {
-                statusText.innerHTML = "✅ Done! (Audio not supported)";
-                return;
-            }
-            
-            window.speechSynthesis.cancel();
-            let utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = "en-US";
-            utterance.rate = 0.95; // Clear natural speed
-            
-            utterance.onend = function() {
-                statusText.innerHTML = "✅ Ready for your next sentence!";
-            };
-            
-            window.speechSynthesis.speak(utterance);
         }
     </script>
 </body>
 </html>
 """
 
-# Safely inject selected language choices into the component
-final_html = (app_template
-              .replace("LANGUAGE_CODE_PLACEHOLDER", native_language_name[1])
-              .replace("LANGUAGE_NAME_PLACEHOLDER", native_language_name[0]))
+final_html = app_template.replace("LANGUAGE_CODE_PLACEHOLDER", native_language_name[1])
+st.components.v1.html(final_html, height=130)
 
-st.components.v1.html(final_html, height=520)
+# Automatically trigger Text-to-Speech audio output in Python if a new translation is added
+if st.session_state.conversation:
+    latest_translation = st.session_state.conversation[-1]["translation"]
+    # We use a minor client-side script injection to ensure the browser speaks out the translated text
+    tts_script = f"""
+    <script>
+        if ('speechSynthesis' in window) {{
+            window.speechSynthesis.cancel();
+            let utterance = new SpeechSynthesisUtterance("{latest_translation}");
+            utterance.lang = "en-US";
+            utterance.rate = 0.95;
+            window.speechSynthesis.speak(utterance);
+        }}
+    </script>
+    """
+    st.components.v1.html(tts_script, height=0)

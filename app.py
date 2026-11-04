@@ -10,7 +10,6 @@ st.set_page_config(
 # Responsive Styling for Mobile and Computer screens
 st.markdown("""
     <style>
-    /* Mobile-first responsive tweaks */
     .chat-container {
         max-height: 400px;
         overflow-y: auto;
@@ -48,7 +47,6 @@ st.markdown("""
     .clearfix {
         clear: both;
     }
-    /* Mobile button sizing optimization */
     @media (max-width: 768px) {
         .stButton button {
             width: 100%;
@@ -81,7 +79,7 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.info("📱 **Mobile Tip:** Ensure your browser (Chrome on Android / Safari on Chrome on iOS) has permission to access your microphone.")
+    st.info("📱 **Mobile Tip:** Ensure your browser (Chrome on Android / Safari on iOS) has permission to access your microphone.")
     
     if st.button("🔄 Refresh Conversation"):
         st.session_state.conversation = []
@@ -105,8 +103,8 @@ chat_html += '</div>'
 
 st.markdown(chat_html, unsafe_allow_html=True)
 
-# Cross-Platform HTML5 / JavaScript Voice Component
-voice_component = f"""
+# HTML/JS Voice Component template (Fixed to prevent Python f-string errors)
+voice_component_template = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -122,7 +120,7 @@ voice_component = f"""
     </div>
 
     <script>
-        const langCode = "{native_language[1]}";
+        const langCode = "LANG_CODE_PLACEHOLDER";
         const recordBtn = document.getElementById("recordBtn");
         const statusText = document.getElementById("status");
 
@@ -143,24 +141,22 @@ voice_component = f"""
             let silenceTimer = null;
 
             recordBtn.onclick = function() {
-                // Mobile browsers require user interaction to unlock speech synthesis/recognition
                 unlockAudio();
-                
                 if (!isListening) {
                     try {
                         recognition.start();
-                    } catch (e) {{}}
+                    } catch (e) {}
                 } else {
                     recognition.stop();
                 }
             };
 
-            function unlockAudio() {{
+            function unlockAudio() {
                 let synth = window.speechSynthesis;
-                if (synth && synth.paused) {{
+                if (synth && synth.paused) {
                     synth.resume();
-                }}
-            }}
+                }
+            }
 
             recognition.onstart = function() {
                 isListening = true;
@@ -172,23 +168,22 @@ voice_component = f"""
 
             recognition.onresult = function(event) {
                 let interimTranscript = "";
-                for (let i = event.resultIndex; i < event.results.length; ++i) {{
-                    if (event.results[i].isFinal) {{
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript;
-                    }} else {{
+                    } else {
                         interimTranscript += event.results[i][0].transcript;
-                    }}
-                }}
+                    }
+                }
                 
                 statusText.innerHTML = "<b>Hearing:</b> " + (finalTranscript + interimTranscript);
 
-                // Patient timer: wait a few seconds after user stops talking
                 clearTimeout(silenceTimer);
-                silenceTimer = setTimeout(() => {{
-                    if (isListening) {{
+                silenceTimer = setTimeout(() => {
+                    if (isListening) {
                         recognition.stop();
-                    }}
-                }}, 2500);
+                    }
+                }, 2500);
             };
 
             recognition.onerror = function(event) {
@@ -200,48 +195,48 @@ voice_component = f"""
                 isListening = false;
                 resetButton();
                 
-                if (finalTranscript.trim().length > 0) {{
+                if (finalTranscript.trim().length > 0) {
                     statusText.innerHTML = "🔄 Translating to English...";
                     processTranslation(finalTranscript.trim());
-                }}
+                }
             };
         }
 
-        function resetButton() {{
+        function resetButton() {
             recordBtn.innerHTML = "🎙️ Start Speaking";
             recordBtn.style.backgroundColor = "#4CAF50";
-        }}
+        }
 
-        function processTranslation(text) {{
-            // Simulated intelligent translation placeholder (connect to DeepL/OpenAI API for production)
-            const translatedEnglish = "I understand: \"" + text + "\". Let's practice saying this in English.";
-            
-            // Speak aloud in English (works across mobile and desktop)
+        function processTranslation(text) {
+            const translatedEnglish = "I understand: \\"" + text + "\\". Let's practice saying this in English.";
             speakEnglish(translatedEnglish);
-        }}
+        }
 
-        function speakEnglish(textToSpeak) {{
-            if (!('speechSynthesis' in window)) {{
+        function speakEnglish(textToSpeak) {
+            if (!('speechSynthesis' in window)) {
                 statusText.innerHTML = "✅ Translation ready (Audio not supported on this browser)";
                 return;
-            }}
+            }
 
             statusText.innerHTML = "🔊 Speaking English translation...";
-            window.speechSynthesis.cancel(); // Clear any hanging audio queue
+            window.speechSynthesis.cancel();
             
             let utterance = new SpeechSynthesisUtterance(textToSpeak);
             utterance.lang = "en-US";
-            utterance.rate = 0.9; // Optimal speed for learning
+            utterance.rate = 0.9;
             
-            utterance.onend = function() {{
+            utterance.onend = function() {
                 statusText.innerHTML = "✅ Ready for your next sentence. Tap start to continue.";
-            }};
+            };
             
             window.speechSynthesis.speak(utterance);
-        }}
+        }
     </script>
 </body>
 </html>
 """
+
+# Safely inject the selected language code without breaking Python syntax
+voice_component = voice_component_template.replace("LANG_CODE_PLACEHOLDER", native_language[1])
 
 st.components.v1.html(voice_component, height=170)

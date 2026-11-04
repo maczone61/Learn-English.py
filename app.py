@@ -3,61 +3,11 @@ import streamlit as st
 st.set_page_config(
     page_title="LingoBridge - Learn English",
     page_icon="🌍",
-    layout="centered",
-    initial_sidebar_state="auto"
+    layout="centered"
 )
 
-# Responsive Styling for Mobile and Computer screens
-st.markdown("""
-    <style>
-    .chat-container {
-        max-height: 400px;
-        overflow-y: auto;
-        padding: 12px;
-        background-color: #f8f9fa;
-        border-radius: 12px;
-        border: 1px solid #e9ecef;
-        margin-bottom: 15px;
-    }
-    .bubble-user {
-        background-color: #e3f2fd;
-        color: #0d47a1;
-        padding: 10px 14px;
-        border-radius: 15px 15px 3px 15px;
-        margin: 6px 0;
-        max-width: 85%;
-        float: right;
-        clear: both;
-        font-size: 15px;
-        word-break: break-word;
-    }
-    .bubble-translation {
-        background-color: #e8f5e9;
-        color: #1b5e20;
-        padding: 10px 14px;
-        border-radius: 15px 15px 15px 3px;
-        margin: 6px 0;
-        max-width: 85%;
-        float: left;
-        clear: both;
-        font-size: 15px;
-        border-left: 4px solid #4caf50;
-        word-break: break-word;
-    }
-    .clearfix {
-        clear: both;
-    }
-    @media (max-width: 768px) {
-        .stButton button {
-            width: 100%;
-            font-size: 16px;
-        }
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 st.title("🌍 LingoBridge: Mobile & Desktop English Tutor")
-st.markdown("Practice speaking in your native language on your phone or computer. The app listens patiently, translates into English, and reads it back aloud.")
+st.markdown("Practice speaking in your native language. The app listens patiently, translates into English, and reads it back aloud.")
 
 # Sidebar Settings
 with st.sidebar:
@@ -79,7 +29,7 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.info("📱 **Mobile Tip:** Ensure your browser (Chrome on Android / Safari on iOS) has permission to access your microphone.")
+    st.info("📱 Ensure your browser has permission to access your microphone.")
     
     if st.button("🔄 Refresh Conversation"):
         st.session_state.conversation = []
@@ -92,19 +42,19 @@ if "conversation" not in st.session_state:
 # Main Conversation Display Box
 st.subheader("💬 Conversation Box")
 
-chat_html = '<div class="chat-container">'
+chat_html = '<div style="max-height: 350px; overflow-y: auto; padding: 10px; background-color: #f8f9fa; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 15px;">'
 if not st.session_state.conversation:
-    chat_html += '<p style="color: #6c757d; text-align: center; margin-top: 100px; font-size: 14px;">Tap <b>Start Speaking</b> below and start practicing your English!</p>'
+    chat_html += '<p style="color: #666; text-align: center; margin-top: 100px;">Tap <b>Start Speaking</b> below to practice!</p>'
 else:
     for item in st.session_state.conversation:
-        chat_html += f'<div class="bubble-user"><b>You ({native_language[0]}):</b><br>{item["user"]}</div><div class="clearfix"></div>'
-        chat_html += f'<div class="bubble-translation"><b>English Translation:</b><br>{item["translation"]}</div><div class="clearfix"></div>'
+        chat_html += f'<div style="background: #e3f2fd; color: #0d47a1; padding: 10px; border-radius: 10px; margin: 5px 0; float: right; clear: both; max-width: 80%;"><b>You:</b><br>{item["user"]}</div><div style="clear: both;"></div>'
+        chat_html += f'<div style="background: #e8f5e9; color: #1b5e20; padding: 10px; border-radius: 10px; margin: 5px 0; float: left; clear: both; max-width: 80%; border-left: 4px solid #4caf50;"><b>English:</b><br>{item["translation"]}</div><div style="clear: both;"></div>'
 chat_html += '</div>'
 
 st.markdown(chat_html, unsafe_allow_html=True)
 
-# HTML/JS Voice Component template (Fixed to prevent Python f-string errors)
-voice_component_template = """
+# Clean HTML/JS component using standard string replacement (Zero f-string risk)
+html_template = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -112,15 +62,15 @@ voice_component_template = """
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
-    <div style="text-align: center; margin-top: 5px;">
-        <button id="recordBtn" style="background-color: #4CAF50; color: white; padding: 14px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 85%; max-width: 300px;">
+    <div style="text-align: center;">
+        <button id="recordBtn" style="background-color: #4CAF50; color: white; padding: 14px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 30px; cursor: pointer; width: 85%; max-width: 300px;">
             🎙️ Start Speaking
         </button>
-        <p id="status" style="margin-top: 10px; font-size: 14px; color: #555; padding: 0 10px;"></p>
+        <p id="status" style="margin-top: 10px; font-size: 14px; color: #555;"></p>
     </div>
 
     <script>
-        const langCode = "LANG_CODE_PLACEHOLDER";
+        const langCode = "LANGUAGE_CODE_PLACEHOLDER";
         const recordBtn = document.getElementById("recordBtn");
         const statusText = document.getElementById("status");
 
@@ -128,107 +78,80 @@ voice_component_template = """
         let isListening = false;
 
         if (!SpeechRecognition) {
-            statusText.innerHTML = "❌ Speech Recognition is limited on this browser. Try Google Chrome on Android/PC or Safari on iOS.";
-            recordBtn.style.backgroundColor = "#9e9e9e";
+            statusText.innerHTML = "❌ Speech Recognition not supported. Use Google Chrome or Safari.";
+            recordBtn.style.backgroundColor = "#999";
         } else {
             let recognition = new SpeechRecognition();
             recognition.lang = langCode;
             recognition.interimResults = true;
-            recognition.maxAlternatives = 1;
             recognition.continuous = true; 
 
             let finalTranscript = "";
             let silenceTimer = null;
 
             recordBtn.onclick = function() {
-                unlockAudio();
                 if (!isListening) {
-                    try {
-                        recognition.start();
-                    } catch (e) {}
+                    try { recognition.start(); } catch(e) {}
                 } else {
                     recognition.stop();
                 }
             };
 
-            function unlockAudio() {
-                let synth = window.speechSynthesis;
-                if (synth && synth.paused) {
-                    synth.resume();
-                }
-            }
-
             recognition.onstart = function() {
                 isListening = true;
                 finalTranscript = "";
-                recordBtn.innerHTML = "🛑 Listening (Speak Now)...";
+                recordBtn.innerHTML = "🛑 Listening...";
                 recordBtn.style.backgroundColor = "#d32f2f";
                 statusText.innerHTML = "Listening patiently... Take your time.";
             };
 
             recognition.onresult = function(event) {
-                let interimTranscript = "";
+                let interim = "";
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript;
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        interim += event.results[i][0].transcript;
                     }
                 }
-                
-                statusText.innerHTML = "<b>Hearing:</b> " + (finalTranscript + interimTranscript);
+                statusText.innerHTML = "<b>Hearing:</b> " + (finalTranscript + interim);
 
                 clearTimeout(silenceTimer);
                 silenceTimer = setTimeout(() => {
-                    if (isListening) {
-                        recognition.stop();
-                    }
+                    if (isListening) { recognition.stop(); }
                 }, 2500);
             };
 
             recognition.onerror = function(event) {
                 statusText.innerHTML = "⚠️ Note: " + event.error;
-                resetButton();
+                resetBtn();
             };
 
             recognition.onend = function() {
                 isListening = false;
-                resetButton();
-                
+                resetBtn();
                 if (finalTranscript.trim().length > 0) {
-                    statusText.innerHTML = "🔄 Translating to English...";
-                    processTranslation(finalTranscript.trim());
+                    statusText.innerHTML = "🔄 Translating...";
+                    speakEnglish("I understand: " + finalTranscript.trim() + ". Let's practice this in English!");
                 }
             };
         }
 
-        function resetButton() {
+        function resetBtn() {
             recordBtn.innerHTML = "🎙️ Start Speaking";
             recordBtn.style.backgroundColor = "#4CAF50";
         }
 
-        function processTranslation(text) {
-            const translatedEnglish = "I understand: \\"" + text + "\\". Let's practice saying this in English.";
-            speakEnglish(translatedEnglish);
-        }
-
-        function speakEnglish(textToSpeak) {
-            if (!('speechSynthesis' in window)) {
-                statusText.innerHTML = "✅ Translation ready (Audio not supported on this browser)";
-                return;
-            }
-
+        function speakEnglish(text) {
+            if (!('speechSynthesis' in window)) return;
             statusText.innerHTML = "🔊 Speaking English translation...";
             window.speechSynthesis.cancel();
-            
-            let utterance = new SpeechSynthesisUtterance(textToSpeak);
+            let utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = "en-US";
             utterance.rate = 0.9;
-            
             utterance.onend = function() {
-                statusText.innerHTML = "✅ Ready for your next sentence. Tap start to continue.";
+                statusText.innerHTML = "✅ Ready for your next sentence!";
             };
-            
             window.speechSynthesis.speak(utterance);
         }
     </script>
@@ -236,7 +159,6 @@ voice_component_template = """
 </html>
 """
 
-# Safely inject the selected language code without breaking Python syntax
-voice_component = voice_component_template.replace("LANG_CODE_PLACEHOLDER", native_language[1])
-
-st.components.v1.html(voice_component, height=170)
+# Inject the selected language safely
+final_html = html_template.replace("LANGUAGE_CODE_PLACEHOLDER", native_language[1])
+st.components.v1.html(final_html, height=160)
